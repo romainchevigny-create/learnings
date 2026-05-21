@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';">
 <title>Mes Learnings - Développement Personnel</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -786,29 +785,34 @@ function renderContent() {
     
     const header = document.createElement('div');
     header.className = 'theme-header';
-    header.innerHTML = `
-      <h2>${theme.icon} ${theme.theme}</h2>
-      <span class="toggle-icon">▼</span>
-    `;
+    const h2 = document.createElement('h2');
+    h2.textContent = theme.icon + ' ' + theme.theme;
+    const toggleIcon = document.createElement('span');
+    toggleIcon.className = 'toggle-icon';
+    toggleIcon.textContent = '▼';
+    header.appendChild(h2);
+    header.appendChild(toggleIcon);
     header.addEventListener('click', () => {
       section.classList.toggle('collapsed');
     });
-    
+
     const themeContent = document.createElement('div');
     themeContent.className = 'theme-content';
-    
+
     theme.subthemes.forEach((subtheme, subIdx) => {
       const subDiv = document.createElement('div');
       subDiv.className = 'subtheme';
-      subDiv.innerHTML = `<h3>${subtheme.name}</h3>`;
-      
+      const h3 = document.createElement('h3');
+      h3.textContent = subtheme.name;
+      subDiv.appendChild(h3);
+
       subtheme.learnings.forEach((learning, learnIdx) => {
         const id = generateId(themeIdx, subIdx, learnIdx);
         const isTed = typeof learning === 'object' && learning.ted;
         const text = isTed ? learning.text : learning;
-        
+
         const learningData = savedData[id] || { read: false, favorite: false, note: '' };
-        
+
         const learningDiv = document.createElement('div');
         learningDiv.className = 'learning';
         if (isTed) learningDiv.classList.add('ted-talk');
@@ -817,38 +821,57 @@ function renderContent() {
         learningDiv.dataset.id = id;
         learningDiv.dataset.themeIdx = themeIdx;
         learningDiv.dataset.text = text.replace(/<[^>]*>/g, '').toLowerCase();
-        
-        learningDiv.innerHTML = `
-          <div class="learning-text">${text}</div>
-          <div class="learning-actions">
-            <button class="action-btn read-btn ${learningData.read ? 'active' : ''}" data-action="read">
-              ${learningData.read ? '✓ Lu' : 'Marquer lu'}
-            </button>
-            <button class="action-btn favorite ${learningData.favorite ? 'active' : ''}" data-action="favorite">
-              ⭐ Favori
-            </button>
-            <button class="action-btn note-btn ${learningData.note ? 'active' : ''}" data-action="note">
-              📝 ${learningData.note ? 'Note' : 'Ajouter note'}
-            </button>
-          </div>
-          <div class="note-section ${learningData.note ? 'visible' : ''}">
-            <textarea class="note-textarea" placeholder="Vos réflexions personnelles sur ce learning...">${learningData.note || ''}</textarea>
-          </div>
-        `;
-        
-        learningDiv.querySelector('[data-action="read"]').addEventListener('click', () => {
-          toggleRead(id);
+
+        // Learning text (supporte le HTML pour les TED talks en gras)
+        const learningText = document.createElement('div');
+        learningText.className = 'learning-text';
+        const parser = new DOMParser();
+        const parsed = parser.parseFromString(text, 'text/html');
+        Array.from(parsed.body.childNodes).forEach(node => {
+          learningText.appendChild(document.importNode(node, true));
         });
-        learningDiv.querySelector('[data-action="favorite"]').addEventListener('click', () => {
-          toggleFavorite(id);
-        });
-        learningDiv.querySelector('[data-action="note"]').addEventListener('click', () => {
-          const noteSection = learningDiv.querySelector('.note-section');
-          noteSection.classList.toggle('visible');
-        });
-        learningDiv.querySelector('.note-textarea').addEventListener('input', (e) => {
-          updateNote(id, e.target.value);
-        });
+
+        // Actions
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'learning-actions';
+
+        const readBtn = document.createElement('button');
+        readBtn.className = 'action-btn read-btn' + (learningData.read ? ' active' : '');
+        readBtn.dataset.action = 'read';
+        readBtn.textContent = learningData.read ? '✓ Lu' : 'Marquer lu';
+
+        const favBtn = document.createElement('button');
+        favBtn.className = 'action-btn favorite' + (learningData.favorite ? ' active' : '');
+        favBtn.dataset.action = 'favorite';
+        favBtn.textContent = '⭐ Favori';
+
+        const noteBtn = document.createElement('button');
+        noteBtn.className = 'action-btn note-btn' + (learningData.note ? ' active' : '');
+        noteBtn.dataset.action = 'note';
+        noteBtn.textContent = learningData.note ? '📝 Note' : '📝 Ajouter note';
+
+        actionsDiv.appendChild(readBtn);
+        actionsDiv.appendChild(favBtn);
+        actionsDiv.appendChild(noteBtn);
+
+        // Note section
+        const noteSection = document.createElement('div');
+        noteSection.className = 'note-section' + (learningData.note ? ' visible' : '');
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'note-textarea';
+        textarea.placeholder = 'Vos réflexions personnelles sur ce learning...';
+        textarea.value = learningData.note || '';
+        noteSection.appendChild(textarea);
+
+        learningDiv.appendChild(learningText);
+        learningDiv.appendChild(actionsDiv);
+        learningDiv.appendChild(noteSection);
+
+        readBtn.addEventListener('click', () => { toggleRead(id); });
+        favBtn.addEventListener('click', () => { toggleFavorite(id); });
+        noteBtn.addEventListener('click', () => { noteSection.classList.toggle('visible'); });
+        textarea.addEventListener('input', (e) => { updateNote(id, e.target.value); });
         
         subDiv.appendChild(learningDiv);
         
@@ -1004,7 +1027,13 @@ function displayFocusCard() {
   const data = savedData[learning.id] || {};
   
   document.getElementById('focus-category').textContent = `${learning.theme} → ${learning.subtheme}`;
-  document.getElementById('focus-text').innerHTML = learning.text;
+  const focusTextEl = document.getElementById('focus-text');
+  focusTextEl.innerHTML = '';
+  const parser2 = new DOMParser();
+  const parsed2 = parser2.parseFromString(learning.text, 'text/html');
+  Array.from(parsed2.body.childNodes).forEach(node => {
+    focusTextEl.appendChild(document.importNode(node, true));
+  });
   document.getElementById('focus-counter').textContent = `${currentFocusIndex + 1} / ${allLearnings.length}`;
   
   const readBtn = document.getElementById('focus-toggle-read');
