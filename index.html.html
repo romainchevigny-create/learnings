@@ -822,14 +822,19 @@ function renderContent() {
         learningDiv.dataset.themeIdx = themeIdx;
         learningDiv.dataset.text = text.replace(/<[^>]*>/g, '').toLowerCase();
 
-        // Learning text (supporte le HTML pour les TED talks en gras)
+        // Learning text
         const learningText = document.createElement('div');
         learningText.className = 'learning-text';
-        const parser = new DOMParser();
-        const parsed = parser.parseFromString(text, 'text/html');
-        Array.from(parsed.body.childNodes).forEach(node => {
-          learningText.appendChild(document.importNode(node, true));
-        });
+        const tempDiv = document.createElement('div');
+        tempDiv.textContent = text;
+        // Si c'est un TED talk avec du HTML, on utilise un template
+        if (isTed) {
+          const tpl = document.createElement('template');
+          tpl.innerHTML = text;
+          learningText.appendChild(tpl.content.cloneNode(true));
+        } else {
+          learningText.textContent = text;
+        }
 
         // Actions
         const actionsDiv = document.createElement('div');
@@ -1029,11 +1034,9 @@ function displayFocusCard() {
   document.getElementById('focus-category').textContent = `${learning.theme} → ${learning.subtheme}`;
   const focusTextEl = document.getElementById('focus-text');
   focusTextEl.innerHTML = '';
-  const parser2 = new DOMParser();
-  const parsed2 = parser2.parseFromString(learning.text, 'text/html');
-  Array.from(parsed2.body.childNodes).forEach(node => {
-    focusTextEl.appendChild(document.importNode(node, true));
-  });
+  const tpl3 = document.createElement('template');
+  tpl3.innerHTML = learning.text;
+  focusTextEl.appendChild(tpl3.content.cloneNode(true));
   document.getElementById('focus-counter').textContent = `${currentFocusIndex + 1} / ${allLearnings.length}`;
   
   const readBtn = document.getElementById('focus-toggle-read');
